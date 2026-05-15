@@ -2,7 +2,8 @@
 """p3ta-tricks Flask app — unified offline pentest reference."""
 import json, re, os, shutil, yaml
 from pathlib import Path
-from flask import Flask, render_template, request, jsonify, abort, send_from_directory, Response, stream_with_context
+from urllib.parse import quote as _url_quote
+from flask import Flask, render_template, request, jsonify, abort, send_from_directory, redirect, Response, stream_with_context
 
 ROOT          = Path(__file__).parent
 PROCESSED     = ROOT / "content" / "processed"
@@ -24,6 +25,15 @@ SOURCE_IMG_DIRS = {
     "hacker-recipes":   SOURCES / "hacker-recipes" / "docs" / "src",
     "hardware-att":     SOURCES / "hardwareallthethings" / "docs",
     "sliver":           SOURCES / "sliver-docs",
+}
+
+# GitHub raw fallback URLs (used when sources/ not present on deployment)
+SOURCE_GH_RAW = {
+    "netexec":          "https://raw.githubusercontent.com/Pennyw0rth/NetExec-Wiki/main",
+    "hacktricks":       "https://raw.githubusercontent.com/HackTricks-wiki/hacktricks/master/src",
+    "hacktricks-cloud": "https://raw.githubusercontent.com/HackTricks-wiki/hacktricks-cloud/master/src",
+    "hacker-recipes":   "https://raw.githubusercontent.com/ShutdownRepo/The-Hacker-Recipes/main/docs/src",
+    "hardware-att":     "https://raw.githubusercontent.com/swisskyrepo/HardwareAllTheThings/master/docs",
 }
 
 # GitHub URL prefix → local tool directory name (for badge injection)
@@ -387,42 +397,43 @@ def _resolve_rel(page_dir: str, src: str) -> str:
 
 
 def _rewrite_images(html: str, source_id: str, page_path: str) -> str:
-    """Rewrite relative img src paths to /source-assets/ URLs so Flask can serve them."""
+    """Rewrite relative img src paths.
+
+    Online mode  → GitHub raw URLs (images not deployed with the app).
+    Offline mode → /source-assets/ route served from local sources/ dir.
+    """
     page_dir = "/".join(page_path.replace("\\", "/").split("/")[:-1])
 
+    def _local(resolved: str) -> str:
+        return f"/source-assets/{source_id}/{resolved}"
+
+    def _gh_raw(resolved: str) -> str:
+        base = SOURCE_GH_RAW.get(source_id, "")
+        if not base:
+            return ""
+        encoded = "/".join(_url_quote(seg, safe="") for seg in resolved.split("/"))
+        return f"{base}/{encoded}"
+
     def fix(m):
-        prefix, q, src, = m.group(1), m.group(2), m.group(3)
+        prefix, q, src = m.group(1), m.group(2), m.group(3)
         if src.startswith(("http://", "https://", "data:", "/source-assets/", "#")):
             return m.group(0)
 
         if source_id == "netexec":
             resolved = _resolve_rel(page_dir, src)
-            new_src = f"/source-assets/netexec/{resolved}"
-
-        elif source_id == "hacktricks":
-            # images live flat in src/images/ regardless of relative depth
-            fname = src.rsplit("/", 1)[-1]
-            new_src = f"/source-assets/hacktricks/images/{fname}"
-
-        elif source_id == "hacktricks-cloud":
-            fname = src.rsplit("/", 1)[-1]
-            new_src = f"/source-assets/hacktricks-cloud/images/{fname}"
-
-        elif source_id == "hacker-recipes":
+        elif source_id in ("hacktricks", "hacktricks-cloud"):
+            # all images live flat in src/images/ regardless of relative depth
+            resolved = f"images/{src.rsplit('/', 1)[-1]}"
+        elif source_id in ("hacker-recipes", "hardware-att"):
             resolved = _resolve_rel(page_dir, src)
-            new_src = f"/source-assets/hacker-recipes/{resolved}"
-
-        elif source_id == "hardware-att":
-            resolved = _resolve_rel(page_dir, src)
-            new_src = f"/source-assets/hardware-att/{resolved}"
-
         elif source_id == "sliver":
-            path = src if src.startswith("/") else f"/{src}"
-            new_src = f"/source-assets/sliver{path}"
-
+            resolved = src.lstrip("/")
         else:
             return m.group(0)
 
+        new_src = _local(resolved) if OFFLINE_MODE else _gh_raw(resolved)
+        if not new_src:
+            return m.group(0)
         return f"{prefix}{q}{new_src}{q}"
 
     return _IMG_RE.sub(fix, html)
@@ -934,11 +945,13 @@ def not_found(e):
 
 @app.route("/source-assets/<source_id>/<path:filepath>")
 def source_assets(source_id, filepath):
+    """Offline mode only — serve images from local sources/ directories."""
+    if not OFFLINE_MODE:
+        abort(404)
     base = SOURCE_IMG_DIRS.get(source_id)
     if not base:
         abort(404)
     target = (base / filepath).resolve()
-    # Prevent path traversal outside the source dir
     try:
         target.relative_to(base.resolve())
     except ValueError:
