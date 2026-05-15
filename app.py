@@ -16,6 +16,16 @@ TOOLS_DIR    = Path(os.environ.get("TOOLS_DIR", ROOT.parent / "p3ta-tricks-offli
 BINARIES_DIR = ROOT / "binaries"  # compiled binaries served on online mode too
 SITE_URL     = os.environ.get("SITE_URL", "https://p3ta-tricks.com")
 
+# Source image base directories — served via /source-assets/<source_id>/<path>
+SOURCE_IMG_DIRS = {
+    "netexec":          SOURCES / "netexec-wiki",
+    "hacktricks":       SOURCES / "hacktricks" / "src",
+    "hacktricks-cloud": SOURCES / "hacktricks-cloud" / "src",
+    "hacker-recipes":   SOURCES / "hacker-recipes" / "docs" / "src",
+    "hardware-att":     SOURCES / "hardwareallthethings" / "docs",
+    "sliver":           SOURCES / "sliver-docs",
+}
+
 # GitHub URL prefix → local tool directory name (for badge injection)
 TOOL_MAP = {
     # ── Windows Privilege Escalation ──────────────────────────────────────────
@@ -361,6 +371,61 @@ _index_cache = None
 _page_cache  = {}
 _nav_cache   = {}
 
+_IMG_RE = re.compile(r'(<img\b[^>]*?\bsrc=)(["\'])([^"\']+)\2', re.I | re.S)
+
+
+def _resolve_rel(page_dir: str, src: str) -> str:
+    """Resolve a relative path (src) against page_dir, collapsing '..' components."""
+    parts = []
+    for p in (page_dir + "/" + src).split("/"):
+        if p == "..":
+            if parts:
+                parts.pop()
+        elif p and p != ".":
+            parts.append(p)
+    return "/".join(parts)
+
+
+def _rewrite_images(html: str, source_id: str, page_path: str) -> str:
+    """Rewrite relative img src paths to /source-assets/ URLs so Flask can serve them."""
+    page_dir = "/".join(page_path.replace("\\", "/").split("/")[:-1])
+
+    def fix(m):
+        prefix, q, src, = m.group(1), m.group(2), m.group(3)
+        if src.startswith(("http://", "https://", "data:", "/source-assets/", "#")):
+            return m.group(0)
+
+        if source_id == "netexec":
+            new_src = f"/source-assets/netexec/{src}"
+
+        elif source_id == "hacktricks":
+            # images live flat in src/images/ regardless of relative depth
+            fname = src.rsplit("/", 1)[-1]
+            new_src = f"/source-assets/hacktricks/images/{fname}"
+
+        elif source_id == "hacktricks-cloud":
+            fname = src.rsplit("/", 1)[-1]
+            new_src = f"/source-assets/hacktricks-cloud/images/{fname}"
+
+        elif source_id == "hacker-recipes":
+            resolved = _resolve_rel(page_dir, src)
+            new_src = f"/source-assets/hacker-recipes/{resolved}"
+
+        elif source_id == "hardware-att":
+            resolved = _resolve_rel(page_dir, src)
+            new_src = f"/source-assets/hardware-att/{resolved}"
+
+        elif source_id == "sliver":
+            path = src if src.startswith("/") else f"/{src}"
+            new_src = f"/source-assets/sliver{path}"
+
+        else:
+            return m.group(0)
+
+        return f"{prefix}{q}{new_src}{q}"
+
+    return _IMG_RE.sub(fix, html)
+
 
 # ---------------------------------------------------------------------------
 # Index / page loading
@@ -390,6 +455,7 @@ def _load_page(source: str, page_path: str):
             data = json.loads(candidates[0].read_text(encoding="utf-8"))
             if 'html' in data:
                 data['html'] = re.sub(r'\{\{#[^}]*\}\}', '', data['html'])
+                data['html'] = _rewrite_images(data['html'], source, page_path)
             _page_cache[key] = data
         except Exception:
             return None
@@ -859,6 +925,26 @@ def api_nav(source_id):
 @app.errorhandler(404)
 def not_found(e):
     return render_template("404.html"), 404
+
+
+# ---------------------------------------------------------------------------
+# Source repository image assets
+# ---------------------------------------------------------------------------
+
+@app.route("/source-assets/<source_id>/<path:filepath>")
+def source_assets(source_id, filepath):
+    base = SOURCE_IMG_DIRS.get(source_id)
+    if not base:
+        abort(404)
+    target = (base / filepath).resolve()
+    # Prevent path traversal outside the source dir
+    try:
+        target.relative_to(base.resolve())
+    except ValueError:
+        abort(404)
+    if not target.exists() or not target.is_file():
+        abort(404)
+    return send_from_directory(str(target.parent), target.name)
 
 
 # ---------------------------------------------------------------------------
