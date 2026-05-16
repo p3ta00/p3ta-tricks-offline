@@ -843,6 +843,11 @@
         "children": []
       },
       {
+        "title": "Chmod",
+        "url": "/page/netexec/nfs-protocol/chmod",
+        "children": []
+      },
+      {
         "title": "Escapetorootfilesystem",
         "url": "/page/netexec/nfs-protocol/escape-to-root-file-system",
         "children": []
