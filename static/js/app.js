@@ -961,6 +961,14 @@ function _applyGopacketToHtml(html) {
 }
 
 // Unified render: distro/impl → vars → display
+// Variables whose values are single-quoted on substitution so special chars survive shell
+const _QUOTED_VARS = new Set([
+  'password','pass','pwd',
+  'username','user','u',
+  'target-user','victim-user','auth-user','attacker-user',
+  'admin-username','local-admin','new-password','password2',
+]);
+
 function _renderCode() {
   const mode = _getDistro();
   const impl = _getImpl();
@@ -975,6 +983,7 @@ function _renderCode() {
     Object.entries(vars).forEach(([k, v]) => {
       if (!v) return;
       const safe = v.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const display = _QUOTED_VARS.has(k.toLowerCase()) ? `'${safe}'` : safe;
       const ek = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       // Prism bash/powershell tokenizes < and > as operator spans, so we must match
       // BOTH the raw form (&lt;key&gt;) and the Prism-wrapped form (<span...>&lt;</span>key<span...>&gt;</span>)
@@ -982,7 +991,7 @@ function _renderCode() {
         `<span[^>]*>&lt;<\\/span>${ek}<span[^>]*>&gt;<\\/span>|&lt;${ek}&gt;`,
         'gi'
       );
-      html = html.replace(re, `<span class="var-filled" title="&lt;${k}&gt;">${safe}</span>`);
+      html = html.replace(re, `<span class="var-filled" title="&lt;${k}&gt;">${display}</span>`);
     });
     el.innerHTML = html;
   });
