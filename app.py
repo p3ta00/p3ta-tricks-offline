@@ -988,10 +988,17 @@ def api_exploitdb_code(exploit_id):
         code_path.relative_to(_EXPLOITDB_SRC.resolve())
     except ValueError:
         return jsonify({"error": "Not found"}), 404
+    _MAX_CODE = 100_000  # Prism.js freezes browser on larger blobs
+
     if code_path.exists():
         try:
             code = code_path.read_text(encoding="utf-8", errors="replace")
-            return jsonify({"id": exploit_id, "path": entry["path"], "code": code, "source": "local"})
+            full_size = len(code)
+            truncated = full_size > _MAX_CODE
+            if truncated:
+                code = code[:_MAX_CODE] + f"\n\n# ... [truncated — file is {full_size // 1024} KB; use Download for full file]"
+            return jsonify({"id": exploit_id, "path": entry["path"], "code": code, "source": "local",
+                            "truncated": truncated, "full_size": full_size})
         except Exception:
             return jsonify({"error": "Failed to load code"}), 500
 
@@ -1001,7 +1008,12 @@ def api_exploitdb_code(exploit_id):
         req = _ur.Request(url, headers={"User-Agent": "p3ta-tricks/1.0"})
         with _ur.urlopen(req, timeout=10) as r:
             code = r.read().decode("utf-8", errors="replace")
-        return jsonify({"id": exploit_id, "path": entry["path"], "code": code, "source": "online"})
+        full_size = len(code)
+        truncated = full_size > _MAX_CODE
+        if truncated:
+            code = code[:_MAX_CODE] + f"\n\n# ... [truncated — file is {full_size // 1024} KB; use Download for full file]"
+        return jsonify({"id": exploit_id, "path": entry["path"], "code": code, "source": "online",
+                        "truncated": truncated, "full_size": full_size})
     except Exception as exc:
         return jsonify({"error": f"Could not fetch from exploit-db.com: {exc}"}), 503
 
