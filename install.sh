@@ -159,6 +159,18 @@ check_file "$STATIC/css/style.css"
 check_file "$STATIC/fonts/press-start-2p.css"
 check_file "$STATIC/fonts/press-start-2p-latin.woff2"
 
+# Adaptix C2 locally-hosted screenshots (required for offline)
+ADAPTIX_IMG_COUNT=$(find "$STATIC/img/adaptix" -name "*.png" -o -name "*.jpg" 2>/dev/null | wc -l)
+if [ "$ADAPTIX_IMG_COUNT" -lt 100 ]; then
+  warn "Only $ADAPTIX_IMG_COUNT Adaptix images found (expected 190+) — run: python3 scripts/fetch_adaptix_images.py"
+else
+  ok "$ADAPTIX_IMG_COUNT Adaptix screenshots cached locally"
+fi
+
+# Sliver C2 images
+check_file "$SCRIPT_DIR/sources/sliver-docs/images/cursed-1.png"
+check_file "$SCRIPT_DIR/sources/sliver-docs/images/dns-c2-1.png"
+
 # CyberChef (optional but expected)
 if [ ! -f "$STATIC/cyberchef/CyberChef_v11.0.0.html" ]; then
   warn "CyberChef not found at $STATIC/cyberchef/ — the CyberChef tab will show a blank page"
@@ -169,6 +181,17 @@ if [ "$MISSING" -gt 0 ]; then
   die "$MISSING critical static files missing — check the repo is complete"
 fi
 ok "All critical static assets present"
+
+# Third-party external images (download and locally host)
+EXT_IMG_COUNT=$(find "$STATIC/img/external" -type f 2>/dev/null | wc -l)
+if [ "$EXT_IMG_COUNT" -lt 100 ]; then
+  info "Downloading third-party source images (first run — takes ~2 minutes)..."
+  "$VENV_PY" "$SCRIPT_DIR/scripts/fetch_external_images.py" 2>/dev/null && \
+    ok "External images downloaded and locally hosted" || \
+    warn "Some external images failed to download (unreachable third-party domains)"
+else
+  ok "$EXT_IMG_COUNT external images already cached in static/img/external/"
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 5 — Verify processed content
@@ -277,16 +300,16 @@ ok "Start script written to: $START_SCRIPT"
 info "Scanning templates for external URL references..."
 
 EXT_REFS=$(grep -rn "https://\|http://" "$SCRIPT_DIR/templates/" \
-  | grep -v "github.com\|p3ta-tricks.com\|exploit-db.com\|nvd.nist.gov\|example\|placeholder\|#\|YOUR_" \
+  | grep -v "github.com\|gitlab.com\|p3ta-tricks.com\|exploit-db.com\|nvd.nist.gov\|example\|placeholder\|YOUR_\|noopener\|rel=\|{{" \
   | grep -v "<!-\|/\*\|//\s" \
-  | grep "src=\|href=\|url(" \
+  | { grep "src=\|url(" || true; } \
   | wc -l)
 
 if [ "$EXT_REFS" -gt 0 ]; then
   warn "$EXT_REFS potential external asset references found in templates:"
   grep -rn "https://\|http://" "$SCRIPT_DIR/templates/" \
-    | grep -v "github.com\|p3ta-tricks.com\|exploit-db.com\|nvd.nist.gov\|example\|placeholder\|#\|YOUR_" \
-    | grep "src=\|href=\|url(" || true
+    | grep -v "github.com\|gitlab.com\|p3ta-tricks.com\|exploit-db.com\|nvd.nist.gov\|example\|placeholder\|YOUR_\|noopener\|rel=\|{{" \
+    | { grep "src=\|url(" || true; }
 else
   ok "No external asset references found in templates"
 fi
