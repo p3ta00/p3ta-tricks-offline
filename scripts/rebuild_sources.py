@@ -197,6 +197,10 @@ def _strip_gitbook_tags(text: str) -> str:
     # Strip YAML front matter (--- ... ---)
     text = re.sub(r'^---\s*\n.*?\n---\s*\n', '', text, count=1, flags=re.DOTALL)
 
+    # Strip GitBook cloud image references (not resolvable without GitBook CDN)
+    # Format: ![alt](<!-- gitbook-image:ID -->)
+    text = re.sub(r'!\[[^\]]*\]\(<!-- gitbook-image:[^)]*-->\)', '', text)
+
     # {% hint style="..." %} ... {% endhint %} → admonition
     def _hint(m):
         kind = _HINT_KIND.get(m.group(1).lower(), 'info')

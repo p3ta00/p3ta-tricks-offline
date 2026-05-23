@@ -757,6 +757,12 @@ def _get_nav(source_id: str) -> list:
 
     cfg = _NAV_SOURCES.get(source_id)
     if not cfg:
+        # Sources like linux-privesc/windows-privesc have pre-built nav but no _NAV_SOURCES entry
+        pre_built = NAV_CACHE_DIR / f"{source_id}.json"
+        if pre_built.exists():
+            tree = json.loads(pre_built.read_text(encoding='utf-8'))
+            _nav_cache[source_id] = tree
+            return tree
         return []
 
     # GTFOBins and LOLBAS: build A–Z nav from index
