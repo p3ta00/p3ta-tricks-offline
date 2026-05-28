@@ -124,8 +124,14 @@ VENV_PIP="$VENV_DIR/bin/pip"
 VENV_PY="$VENV_DIR/bin/python3"
 
 info "Installing wiki requirements..."
-"$VENV_PIP" install --upgrade pip --quiet
-"$VENV_PIP" install -r "$SCRIPT_DIR/requirements.txt" --quiet
+if [ -d "$SCRIPT_DIR/vendor" ] && [ -n "$(ls -A "$SCRIPT_DIR/vendor" 2>/dev/null)" ]; then
+  info "vendor/ found — installing offline (no PyPI)"
+  "$VENV_PIP" install -r "$SCRIPT_DIR/requirements.txt" \
+    --no-index --find-links "$SCRIPT_DIR/vendor/" --quiet
+else
+  "$VENV_PIP" install --upgrade pip --quiet
+  "$VENV_PIP" install -r "$SCRIPT_DIR/requirements.txt" --quiet
+fi
 ok "Wiki requirements installed"
 
 # Verify key imports

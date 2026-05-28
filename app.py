@@ -238,6 +238,8 @@ SOURCE_META = {
     "adaptix":         {"label": "Adaptix C2",             "color": "var(--purple)",  "icon": "🎯"},
     "linux-privesc":   {"label": "Linux PrivEsc",          "color": "var(--orange)",  "icon": "🐧"},
     "windows-privesc": {"label": "Windows PrivEsc",         "color": "var(--blue)",    "icon": "🪟"},
+    "misc":            {"label": "Misc Cheatsheets",        "color": "var(--cyan)",    "icon": "📋"},
+    "churchofmalware": {"label": "Church of Malware",         "color": "var(--red)",     "icon": "⛧"},
 }
 
 _NAV_SOURCES = {
@@ -784,7 +786,7 @@ def _get_nav(source_id: str) -> list:
 
     # If sources/ dir is unavailable (e.g. Railway), serve pre-built nav JSON
     pre_built = NAV_CACHE_DIR / f"{source_id}.json"
-    if not cfg['root'].exists() and pre_built.exists():
+    if pre_built.exists():
         tree = json.loads(pre_built.read_text(encoding='utf-8'))
         _nav_cache[source_id] = tree
         return tree
@@ -1173,6 +1175,26 @@ def source_assets(source_id, filepath):
     if not target.exists() or not target.is_file():
         abort(404)
     return send_from_directory(str(target.parent), target.name)
+
+
+@app.route("/images/<path:filepath>")
+def images_fallback(filepath):
+    for base in SOURCE_IMG_DIRS.values():
+        candidate = (base / "images" / filepath).resolve()
+        try:
+            candidate.relative_to(base.resolve())
+        except ValueError:
+            continue
+        if candidate.exists() and candidate.is_file():
+            return send_from_directory(str(candidate.parent), candidate.name)
+    flat = (Path(app.static_folder) / "img" / "external" / filepath).resolve()
+    try:
+        flat.relative_to(Path(app.static_folder).resolve())
+    except ValueError:
+        abort(404)
+    if flat.exists() and flat.is_file():
+        return send_from_directory(str(flat.parent), flat.name)
+    abort(404)
 
 
 # ---------------------------------------------------------------------------

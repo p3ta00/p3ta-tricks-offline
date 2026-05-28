@@ -42,9 +42,9 @@ The installer handles Python venv, dependencies, asset verification, and externa
 
 ## What's in it
 
-BloodHound · HackTricks · HackTricks Cloud · The Hacker Recipes · PayloadsAllTheThings · InternalAllTheThings · HardwareAllTheThings · GTFOBins · LOLBAS · WADComs · NetExec · Impacket · Certipy · bloodyAD · Rubeus · Mimikatz · Ligolo-ng · Sliver · Adaptix C2 · goexec · Metasploit · All About Bug Bounty · Exploit-DB
+BloodHound · HackTricks · HackTricks Cloud · The Hacker Recipes · PayloadsAllTheThings · InternalAllTheThings · HardwareAllTheThings · GTFOBins · LOLBAS · WADComs · NetExec · Impacket · Certipy · bloodyAD · Rubeus · Mimikatz · Ligolo-ng · Sliver · Adaptix C2 · goexec · Metasploit · All About Bug Bounty · Exploit-DB · Church of Malware · Misc Cheatsheets
 
-**3,296 pages · 29 sources**
+**3,383 pages · 31 sources**
 
 ---
 
@@ -104,6 +104,7 @@ This project stands entirely on the work of others. Every page traces back to re
 | [goexec](https://github.com/FalconOpsLLC/goexec) | FalconOpsLLC |
 | [Metasploit](https://github.com/rapid7/metasploit-framework) | rapid7 |
 | [All About Bug Bounty](https://github.com/daffainfo/AllAboutBugBounty) | daffainfo |
+| [Church of Malware](https://churchofmalware.org) | 0xXyc et al. |
 
 ---
 

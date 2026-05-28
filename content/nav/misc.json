@@ -1,0 +1,92 @@
+[
+  {
+    "type": "link",
+    "title": "Linux Basics — Files, Navigation, Search",
+    "url": "/page/misc/linux-basics",
+    "children": []
+  },
+  {
+    "type": "link",
+    "title": "Filesystem & Mounts",
+    "url": "/page/misc/filesystem",
+    "children": []
+  },
+  {
+    "type": "link",
+    "title": "System Information",
+    "url": "/page/misc/system-info",
+    "children": []
+  },
+  {
+    "type": "link",
+    "title": "Networking",
+    "url": "/page/misc/networking",
+    "children": []
+  },
+  {
+    "type": "link",
+    "title": "Permissions & Privilege",
+    "url": "/page/misc/permissions",
+    "children": []
+  },
+  {
+    "type": "link",
+    "title": "Text Processing (sed / awk / friends)",
+    "url": "/page/misc/text-processing",
+    "children": []
+  },
+  {
+    "type": "link",
+    "title": "Archives & Compression",
+    "url": "/page/misc/archives",
+    "children": []
+  },
+  {
+    "type": "link",
+    "title": "Package Management",
+    "url": "/page/misc/packages",
+    "children": []
+  },
+  {
+    "type": "link",
+    "title": "Processes, Jobs & Sessions",
+    "url": "/page/misc/processes-jobs",
+    "children": []
+  },
+  {
+    "type": "link",
+    "title": "SSH & File Transfer",
+    "url": "/page/misc/ssh-transfer",
+    "children": []
+  },
+  {
+    "type": "link",
+    "title": "Users & Groups",
+    "url": "/page/misc/users-groups",
+    "children": []
+  },
+  {
+    "type": "link",
+    "title": "Systemd Services & Timers",
+    "url": "/page/misc/services",
+    "children": []
+  },
+  {
+    "type": "link",
+    "title": "Display & X11 (xrandr, xset)",
+    "url": "/page/misc/display-x11",
+    "children": []
+  },
+  {
+    "type": "link",
+    "title": "Disk & Partition Management",
+    "url": "/page/misc/disk-management",
+    "children": []
+  },
+  {
+    "type": "link",
+    "title": "Containers (docker / podman)",
+    "url": "/page/misc/containers",
+    "children": []
+  }
+]
