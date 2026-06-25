@@ -2,6 +2,12 @@ sources/
 scripts/
 content/processed/osai-research/
 content/nav/osai-research.json
+# Compiled binaries are NOT shipped raw in git (antivirus deletes them on clone).
+# They live only in the encrypted, .txt-disguised archives below and are
+# extracted to ./binaries/ by install.sh. Keep the .7z.*.txt archives tracked.
+binaries/
+.venv/
+start-offline.sh
 __pycache__/
 *.pyc
 *.pyo

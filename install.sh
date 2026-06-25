@@ -145,6 +145,69 @@ ok "Wiki requirements installed"
 "$VENV_PY" -c "import flask, markdown, yaml, pygments" && ok "All Python imports verified" || die "Import check failed"
 
 # ─────────────────────────────────────────────────────────────────────────────
+# STEP 3.5 — Extract bundled archives (compiled binaries + exploit-db corpus)
+#
+# Compiled binaries and the exploit-db script corpus are NOT committed to git as
+# raw files — antivirus quarantines/deletes them on clone or download. Instead
+# they ship as password-protected, split 7-Zip archives disguised with a .txt
+# extension (binaries.7z.001.txt … , exploitdb.7z.001.txt). They are only ever
+# materialised here, at install time, on the operator's own machine.
+#   - binaries.7z.*.txt    -> ./binaries/           (Compiled Binaries page)
+#   - exploitdb.7z.001.txt -> ./sources/exploitdb/  (offline Exploit-DB lookups)
+# Password defaults to "root"; override with ARCHIVE_PW=… if you re-pack them.
+# ─────────────────────────────────────────────────────────────────────────────
+info "Extracting bundled archives (binaries + exploit-db)..."
+
+SEVENZIP="$(command -v 7z || command -v 7za || command -v 7zz || true)"
+if [ -z "$SEVENZIP" ]; then
+  info "Installing 7-Zip (p7zip)..."
+  case "$PKG" in
+    arch)   sys_install p7zip ;;
+    debian) sys_install p7zip-full ;;
+    fedora) sys_install p7zip ;;
+    macos)  sys_install p7zip ;;
+  esac
+  SEVENZIP="$(command -v 7z || command -v 7za || command -v 7zz || true)"
+fi
+[ -n "$SEVENZIP" ] || die "7z not found and could not be installed — needed to extract bundled archives"
+
+ARCHIVE_PW="${ARCHIVE_PW:-root}"
+
+# extract_bundle <basename> <sentinel-relative-path>
+#   Skips if <sentinel> already exists. 7z requires split volumes named
+#   .7z.001/.002/… (without the AV-evading .txt), so we symlink them into a
+#   temp dir first. Archives carry full paths, so we extract to $SCRIPT_DIR.
+extract_bundle() {
+  local base="$1" sentinel="$2"
+  if [ -e "$SCRIPT_DIR/$sentinel" ]; then
+    ok "$base already present ($sentinel) — skipping extraction"
+    return 0
+  fi
+  shopt -s nullglob
+  local parts=( "$SCRIPT_DIR/${base}".7z.*.txt )
+  shopt -u nullglob
+  if [ "${#parts[@]}" -eq 0 ]; then
+    warn "$base archive (${base}.7z.*.txt) not found — skipping"
+    return 0
+  fi
+  info "Extracting $base (${#parts[@]} volume(s))..."
+  local tmp p name; tmp="$(mktemp -d)"
+  for p in "${parts[@]}"; do
+    name="$(basename "${p%.txt}")"
+    ln -sf "$p" "$tmp/$name"
+  done
+  if "$SEVENZIP" x -p"$ARCHIVE_PW" -o"$SCRIPT_DIR" -y "$tmp/${base}.7z.001" >/dev/null 2>&1; then
+    ok "$base extracted"
+  else
+    warn "$base extraction failed (wrong ARCHIVE_PW?). Manual: 7z x -p<pw> ${base}.7z.001"
+  fi
+  rm -rf "$tmp"
+}
+
+extract_bundle "exploitdb" "sources/exploitdb/exploits"
+extract_bundle "binaries"  "binaries/.versions.json"
+
+# ─────────────────────────────────────────────────────────────────────────────
 # STEP 4 — Verify all static assets are local (no CDN gaps)
 # ─────────────────────────────────────────────────────────────────────────────
 info "Verifying offline asset completeness..."
