@@ -18,23 +18,29 @@ const SOURCES = [
   { id: 'lolbas',           label: 'LOLBAS',               icon: '🪟', color: '#e0af68', noNav: true },
   { id: 'wadcoms',          label: 'WADComs',              icon: '🏴', color: '#7aa2f7', noNav: true },
   { id: 'exploitdb',        label: 'Exploit-DB',           icon: '💥', color: '#f7768e', noNav: true },
-  // ── Reference sources (alphabetical) ────────────────────────────────────
+  { id: 'lolol-farm',       label: 'lolol.farm',           icon: '🌾', color: '#3ee07a', noNav: true, url: '/lolol/' },
+  // ── Reference sources (alphabetical by label) ───────────────────────────
+  { id: 'adaptix',          label: 'Adaptix C2',           icon: '🎯', color: '#bb9af7' },
   { id: 'active-directory', label: 'Active Directory',     icon: '🎓', color: '#9ece6a' },
-  { id: 'breaking-adcs',   label: 'Breaking ADCS',        icon: '📜', color: '#f7768e' },
   { id: 'bloodhound',       label: 'BloodHound',           icon: '🩸', color: '#f7768e' },
   { id: 'bloodyad',         label: 'bloodyAD',             icon: '🩸', color: '#db4b4b' },
+  { id: 'breaking-adcs',   label: 'Breaking ADCS',        icon: '📜', color: '#f7768e' },
   { id: 'bug-bounty',       label: 'Bug Bounty',           icon: '🐛', color: '#e0af68' },
   { id: 'certipy',          label: 'Certipy',              icon: '📜', color: '#f7768e' },
+  { id: 'cheatsheet',       label: 'Cheat Sheets',         icon: '📋', color: '#9ece6a' },
+  { id: 'churchofmalware', label: 'Church of Malware',    icon: '⛧', color: '#f7768e' },
   { id: 'enum',             label: 'Enumeration',          icon: '🔍', color: '#9ece6a' },
-  { id: 'goexec',           label: 'goexec',               icon: '⚡', color: '#9ece6a' },
   { id: 'gopacket',         label: 'GoPacket',             icon: '🐹', color: '#9ece6a' },
+  { id: 'goexec',           label: 'goexec',               icon: '⚡', color: '#9ece6a' },
   { id: 'hacktricks',       label: 'HackTricks',           icon: '🤖', color: '#f7768e' },
   { id: 'hacktricks-cloud', label: 'HackTricks Cloud',     icon: '☁️',  color: '#7aa2f7' },
   { id: 'hardware-att',     label: 'HardwareAllTheThings', icon: '🔌', color: '#e0af68' },
   { id: 'impacket',         label: 'Impacket',             icon: '📦', color: '#2ac3de' },
   { id: 'internal-att',     label: 'InternalAllTheThings', icon: '🏰', color: '#bb9af7' },
   { id: 'ligolo-ng',        label: 'Ligolo-ng',            icon: '🔀', color: '#2ac3de' },
+  { id: 'linux-privesc',   label: 'Linux PrivEsc',        icon: '🐧', color: '#ff9e64' },
   { id: 'mimikatz',         label: 'Mimikatz',             icon: '🐱', color: '#f7768e' },
+  { id: 'misc',            label: 'Misc Cheatsheets',     icon: '📋', color: '#2ac3de' },
   { id: 'msfvenom',         label: 'msfvenom',             icon: '💣', color: '#bb9af7' },
   { id: 'netexec',          label: 'NetExec Wiki',         icon: '🔧', color: '#9ece6a' },
   { id: 'osai-research',    label: 'OSAI Research',        icon: '🤖', color: '#bb9af7', offlineOnly: true },
@@ -42,8 +48,6 @@ const SOURCES = [
   { id: 'rubeus',           label: 'Rubeus',               icon: '🎟️', color: '#ff9e64' },
   { id: 'sliver',           label: 'Sliver C2',            icon: '🐍', color: '#f7768e' },
   { id: 'hacker-recipes',   label: 'The Hacker Recipes',  icon: '🍳', color: '#7dcfff' },
-  { id: 'adaptix',          label: 'Adaptix C2',           icon: '🎯', color: '#bb9af7' },
-  { id: 'linux-privesc',   label: 'Linux PrivEsc',        icon: '🐧', color: '#ff9e64' },
   { id: 'windows-privesc', label: 'Windows PrivEsc',      icon: '🪟', color: '#7aa2f7' },
 ];
 
@@ -217,7 +221,7 @@ async function buildAllSourcesNav() {
 
   btnRow.appendChild(expandBtn);
   btnRow.appendChild(collapseBtn);
-  root.appendChild(btnRow);
+  (document.getElementById('nav-expand-row') || root).appendChild(btnRow);
 
   const savedScroll   = sessionStorage.getItem('pt_nav_scroll');
   const hasSavedScroll = !!savedScroll;
@@ -417,11 +421,17 @@ async function loadIndex() {
     const r = await fetch('/api/index');
     _index = await r.json();
     _fuse = new Fuse(_index, {
-      keys: [{ name: 'title', weight: 3 }, { name: 'tags', weight: 2 }, { name: 'excerpt', weight: 1 }],
-      threshold: 0.2,
+      keys: [
+        { name: 'title',    weight: 4 },
+        { name: 'headings', weight: 3 },
+        { name: 'tags',     weight: 2 },
+        { name: 'excerpt',  weight: 1 },
+      ],
+      threshold: 0.3,
       ignoreLocation: true,
       minMatchCharLength: 3,
       includeScore: true,
+      useExtendedSearch: true,
     });
   } catch(e) {}
 }
@@ -1016,13 +1026,20 @@ function _renderCode() {
       const safe = v.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       const display = _QUOTED_VARS.has(k.toLowerCase()) ? `'${safe}'` : safe;
       const ek = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const filled = `<span class="var-filled" title="&lt;${k}&gt;">${safe}</span>`;
+      const filledD = `<span class="var-filled" title="&lt;${k}&gt;">${display}</span>`;
+      // When Pygments wraps '<key>' as a bash single-quoted string: &#39;&lt;key&gt;&#39;
+      // Keep the surrounding &#39; entities so the rendered quote is preserved once,
+      // but use `safe` (no extra quotes) to avoid doubling: ''value''
+      const rePrequoted = new RegExp(`(&#39;)&lt;${ek}&gt;(&#39;)`, 'gi');
+      html = html.replace(rePrequoted, `$1${filled}$2`);
       // Prism bash/powershell tokenizes < and > as operator spans, so we must match
       // BOTH the raw form (&lt;key&gt;) and the Prism-wrapped form (<span...>&lt;</span>key<span...>&gt;</span>)
       const re = new RegExp(
         `<span[^>]*>&lt;<\\/span>${ek}<span[^>]*>&gt;<\\/span>|&lt;${ek}&gt;`,
         'gi'
       );
-      html = html.replace(re, `<span class="var-filled" title="&lt;${k}&gt;">${display}</span>`);
+      html = html.replace(re, filledD);
     });
     el.innerHTML = html;
   });
@@ -1512,7 +1529,7 @@ function _buildRecentSection() {
   const items = list.filter(e => e.url !== window.location.pathname);
 
   const sKey = 'pt_recent_open';
-  const open = sessionStorage.getItem(sKey) !== 'closed';
+  const open = sessionStorage.getItem(sKey) === 'open';
 
   const sec = document.createElement('div');
   sec.className = 'pt-quick-section';
@@ -1562,157 +1579,17 @@ function _buildRecentSection() {
   return sec;
 }
 
-/* ====== FEATURE 2: Favorites / Bookmarks ====== */
-const PT_FAV_KEY = 'pt_favorites';
-
-function _getFavs() {
-  try { return JSON.parse(localStorage.getItem(PT_FAV_KEY) || '[]'); } catch { return []; }
-}
-
-function _saveFavs(list) {
-  localStorage.setItem(PT_FAV_KEY, JSON.stringify(list));
-}
-
-function _isFaved(url) {
-  return _getFavs().some(e => e.url === url);
-}
-
-function _toggleFav(url, title, source) {
-  let list = _getFavs();
-  if (_isFaved(url)) {
-    list = list.filter(e => e.url !== url);
-  } else {
-    list.unshift({ title, url, source });
-  }
-  _saveFavs(list);
-  _refreshFavBtn();
-  _refreshFavSection();
-}
-
-function _refreshFavBtn() {
-  const btn = document.getElementById('pt-fav-btn');
-  if (!btn) return;
-  const faved = _isFaved(window.location.pathname);
-  btn.textContent = faved ? '★' : '☆';
-  btn.title = faved ? 'Remove from favorites' : 'Add to favorites';
-  btn.classList.toggle('pt-fav-active', faved);
-}
-
-function _refreshFavSection() {
-  const sec = document.getElementById('pt-fav-section');
-  if (!sec) return;
-  const body = sec.querySelector('.pt-quick-body');
-  if (!body) return;
-  body.innerHTML = '';
-  const list = _getFavs();
-  if (!list.length) {
-    const empty = document.createElement('div');
-    empty.className = 'pt-quick-empty';
-    empty.textContent = 'No favorites yet.';
-    body.appendChild(empty);
-    return;
-  }
-  list.forEach(entry => {
-    const row = document.createElement('div');
-    row.className = 'pt-quick-item';
-    const a = document.createElement('a');
-    a.className = 'nt-link nt-leaf';
-    a.href = entry.url;
-    a.textContent = entry.title;
-    a.title = entry.title;
-    const rmBtn = document.createElement('button');
-    rmBtn.className = 'pt-quick-remove';
-    rmBtn.textContent = '✕';
-    rmBtn.title = 'Remove from favorites';
-    rmBtn.addEventListener('click', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      let favs = _getFavs().filter(f => f.url !== entry.url);
-      _saveFavs(favs);
-      _refreshFavBtn();
-      _refreshFavSection();
-    });
-    row.appendChild(a);
-    row.appendChild(rmBtn);
-    body.appendChild(row);
-  });
-}
-
-function _buildFavSection() {
-  const sKey = 'pt_fav_open';
-  const open = sessionStorage.getItem(sKey) !== 'closed';
-
-  const sec = document.createElement('div');
-  sec.className = 'pt-quick-section';
-  sec.id = 'pt-fav-section';
-
-  const hdr = document.createElement('button');
-  hdr.className = 'pt-quick-hdr';
-  hdr.innerHTML = (open ? ICON_DOWN : ICON_RIGHT) + '<span>Favorites</span>';
-
-  const body = document.createElement('div');
-  body.className = 'pt-quick-body';
-  if (!open) body.style.display = 'none';
-
-  hdr.addEventListener('click', () => {
-    const nowOpen = body.style.display !== 'none';
-    body.style.display = nowOpen ? 'none' : '';
-    hdr.innerHTML = (nowOpen ? ICON_RIGHT : ICON_DOWN) + '<span>Favorites</span>';
-    sessionStorage.setItem(sKey, nowOpen ? 'closed' : 'open');
-  });
-
-  sec.appendChild(hdr);
-  sec.appendChild(body);
-  return sec;
-}
-
-function _initFavButton() {
-  const pageBody = document.querySelector('.page-body');
-  if (!pageBody) return;
-  const h1 = pageBody.querySelector('h1');
-  if (!h1) return;
-
-  const url    = window.location.pathname;
-  // Get clean title before any injected buttons/links are appended
-  const title  = (h1.innerText || h1.textContent || '').trim()
-                   .replace(/Find in all sources/gi, '').replace(/[★☆]/g, '').trim()
-                 || document.title.split('—')[0].trim();
-  const source = _activeSource || '';
-
-  const btn = document.createElement('button');
-  btn.id        = 'pt-fav-btn';
-  btn.className = 'pt-fav-btn';
-  btn.setAttribute('aria-label', 'Toggle favorite');
-  const faved = _isFaved(url);
-  btn.textContent = faved ? '★' : '☆';
-  btn.title = faved ? 'Remove from favorites' : 'Add to favorites';
-  if (faved) btn.classList.add('pt-fav-active');
-
-  btn.addEventListener('click', () => _toggleFav(url, title, source));
-  // Insert button inside h1 at the end so it sits inline with the title text
-  h1.appendChild(btn);
-}
-
 function _initQuickNav() {
-  // Push current page to recents
   _pushRecent();
 
   const allNav = document.getElementById('all-sources-nav');
   if (!allNav) return;
 
-  // Build sections and prepend before all-sources-nav (which is inside sidebar-inner)
   const sidebarInner = allNav.parentElement;
   if (!sidebarInner) return;
 
-  const favSec    = _buildFavSection();
   const recentSec = _buildRecentSection();
-
-  // Insert: Favorites first, then Recently Visited, then existing nav
   sidebarInner.insertBefore(recentSec, allNav);
-  sidebarInner.insertBefore(favSec, recentSec);
-
-  // Initial render of favs body
-  _refreshFavSection();
 }
 
 /* ====== FEATURE 3: Variable Persistence Toggle ====== */
@@ -1947,7 +1824,7 @@ document.addEventListener('DOMContentLoaded', () => {
   _initMermaid();       // Must run before addCopyButtons (replaces mermaid pre blocks)
   addCopyButtons();
   buildAllSourcesNav();
-  _initQuickNav();      // Feature 1 & 2 — after buildAllSourcesNav so all-sources-nav exists
+  _initQuickNav();      // Recently Visited — after buildAllSourcesNav so all-sources-nav exists
   _initSourceFilter();
   _initDistroToggle();
   _initImplToggle();
@@ -1956,7 +1833,6 @@ document.addEventListener('DOMContentLoaded', () => {
   _initOfflineBadges();
   _initPalette();
   _initCrossSourceSearch();
-  _initFavButton();     // Feature 2 — star button on page h1
   _initPageTOC();       // Feature 4
   _initExportButton();  // Feature 5
 });

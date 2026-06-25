@@ -13,6 +13,15 @@ INDEX         = ROOT / "static" / "search_index.json"
 SOURCES       = ROOT / "sources"
 NAV_CACHE_DIR = ROOT / "content" / "nav"
 
+# Static file cache-buster — use git short hash if available, else timestamp
+import subprocess as _sp, time as _time
+try:
+    _ver = _sp.check_output(['git','rev-parse','--short','HEAD'],
+                             cwd=ROOT, stderr=_sp.DEVNULL).decode().strip()
+except Exception:
+    _ver = str(int(_time.time()))
+STATIC_VER = _ver
+
 # Offline mode — set OFFLINE_MODE=1 and TOOLS_DIR=/path/to/tools
 OFFLINE_MODE = os.environ.get("OFFLINE_MODE", "0") == "1"
 TOOLS_DIR    = Path(os.environ.get("TOOLS_DIR", ROOT.parent / "p3ta-tricks-offline" / "tools"))
@@ -189,7 +198,7 @@ def _security_headers(response):
 @app.context_processor
 def inject_globals():
     """Inject globals into every template."""
-    base = {"site_url": SITE_URL}
+    base = {"site_url": SITE_URL, "static_ver": STATIC_VER}
     if not OFFLINE_MODE:
         base.update({"offline_mode": False, "offline_config_json": "null"})
         return base
@@ -240,7 +249,14 @@ SOURCE_META = {
     "windows-privesc": {"label": "Windows PrivEsc",         "color": "var(--blue)",    "icon": "🪟"},
     "misc":            {"label": "Misc Cheatsheets",        "color": "var(--cyan)",    "icon": "📋"},
     "churchofmalware": {"label": "Church of Malware",         "color": "var(--red)",     "icon": "⛧"},
+    "cheatsheet":      {"label": "Cheat Sheets",               "color": "var(--green)",   "icon": "📋"},
 }
+
+# Sources excluded from global search results (e.g. HackTheBox Academy content
+# that otherwise pollutes cheat-sheet searches). They remain directly browsable
+# via /source/<id> and are still returned when the search is explicitly scoped
+# to that source.
+SEARCH_HIDDEN_SOURCES = {"htb", "htb-academy"}
 
 _NAV_SOURCES = {
     "breaking-adcs": {
@@ -568,16 +584,20 @@ def _load_page(source: str, page_path: str):
 def _search(q: str, limit: int = 30) -> list:
     if not q or len(q) < 2:
         return []
-    idx = _load_index()
-    ql  = q.lower()
+    idx  = _load_index()
+    ql   = q.lower()
     hits = []
     for entry in idx:
-        title   = entry.get("title", "").lower()
-        excerpt = entry.get("excerpt", "").lower()
-        score   = 0
-        if ql in title:          score += 10
-        if title.startswith(ql): score += 5
-        if ql in excerpt:        score += 2
+        title    = entry.get("title",    "").lower()
+        excerpt  = entry.get("excerpt",  "").lower()
+        headings = entry.get("headings", "").lower()
+        tags     = " ".join(entry.get("tags", [])).lower()
+        score    = 0
+        if ql in title:           score += 10
+        if title.startswith(ql):  score += 5
+        if ql in headings:        score += 4
+        if ql in excerpt:         score += 2
+        if ql in tags:            score += 3
         if score:
             hits.append((score, entry))
     hits.sort(key=lambda x: -x[0])
@@ -844,13 +864,16 @@ def _parse_revshells_app():
         meta    = entry.get('meta', [])
         tab     = next((_RS_TYPE_TO_TAB[m] for m in meta if m in _RS_TYPE_TO_TAB), 'reverse')
         os_tags = [m for m in meta if m in ('linux', 'mac', 'windows')]
-        shells.append({
+        shell_entry = {
             'id':      uid,
             'name':    entry.get('name', ''),
             'command': entry.get('command', ''),
             'tab':     tab,
             'os':      os_tags,
-        })
+        }
+        if entry.get('b64_source'):
+            shell_entry['b64_source'] = entry['b64_source']
+        shells.append(shell_entry)
     result = {
         'shells':      shells,
         'listeners':   raw.get('listenerCommands', []),
@@ -958,6 +981,10 @@ def search():
     if not OFFLINE_MODE:
         _hidden = {sid for sid, m in SOURCE_META.items() if m.get("offline_only")}
         results = [r for r in results if r.get("source") not in _hidden]
+    # Always exclude HTB-style sources from global search unless the user has
+    # explicitly scoped the search to one of them.
+    if source not in SEARCH_HIDDEN_SOURCES:
+        results = [r for r in results if r.get("source") not in SEARCH_HIDDEN_SOURCES]
     if source:
         results = [r for r in results if r.get("source") == source]
     if fmt == "json" or request.accept_mimetypes.best == "application/json":
@@ -1026,6 +1053,9 @@ def page(source_id, page_path):
     data = _load_page(source_id, page_path)
     if data is None:
         abort(404)
+    # Flag stub pages — only a heading, no body content
+    body_text = re.sub(r'<h1[^>]*>.*?</h1>', '', data.get('html', ''), flags=re.S)
+    data['is_stub'] = len(re.sub(r'<[^>]+>', '', body_text).strip()) < 20
     meta = SOURCE_META[source_id]
     return render_template("page.html", page=data, meta=meta, source_meta=SOURCE_META)
 
@@ -1044,6 +1074,12 @@ def payload_encoder():
 @app.route("/jwt-decoder/")
 def jwt_decoder():
     return render_template("jwt_decoder.html", source_meta=SOURCE_META)
+
+
+@app.route("/lolol")
+@app.route("/lolol/")
+def lolol_farm():
+    return render_template("lolol_farm.html", source_meta=SOURCE_META)
 
 
 @app.route("/api/exploitdb/index")
