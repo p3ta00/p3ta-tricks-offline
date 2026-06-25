@@ -1120,7 +1120,15 @@ def api_exploitdb_code(exploit_id):
         except Exception:
             return jsonify({"error": "Failed to load code"}), 500
 
-    # Online fallback: proxy raw file from exploit-db.com
+    # In offline mode, never touch the network — report cleanly instead of
+    # hanging on a 10s timeout to exploit-db.com for exploits not in the corpus.
+    if OFFLINE_MODE:
+        return jsonify({
+            "error": "Not in the offline corpus — re-pack the exploit-db archive to include it.",
+            "offline": True,
+        }), 404
+
+    # Online fallback (online mode only): proxy raw file from exploit-db.com
     try:
         url = f"https://www.exploit-db.com/download/{exploit_id}"
         req = _ur.Request(url, headers={"User-Agent": "p3ta-tricks/1.0"})
