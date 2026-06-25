@@ -36,7 +36,31 @@ Custom port / host:
 PORT=8080 HOST=0.0.0.0 ./start-offline.sh
 ```
 
-The installer handles Python venv, dependencies, asset verification, and external image download (idempotent — skips already-cached images).
+The installer handles Python venv, dependencies, asset verification, archive extraction, and external image download (idempotent — skips already-cached steps).
+
+---
+
+## Bundled Archives
+
+The compiled binaries and the Exploit-DB script corpus are shipped as compressed, password-protected, split 7-Zip archives (the volumes carry a `.txt` suffix). `install.sh` extracts them automatically on first run; you don't need to do anything manually.
+
+| Archive | Extracts to | Contents |
+|---|---|---|
+| `binaries.7z.001.txt` … `.003.txt` | `binaries/` | ~75 compiled offline pentest binaries — Potatoes (GodPotato, JuicyPotato, PrintSpoofer), Mimikatz, Kerbrute, Kekeo, LaZagne, GoldenGMSA, nanodump, chisel, reverse-ssh, PEASS-ng, PrivescCheck, pspy, bettercap, dnSpy, Windows kernel exploits, ysoserial.net, and more (`.versions.json` tracks versions) |
+| `exploitdb.7z.001.txt` | `sources/exploitdb/` | The full Exploit-DB corpus (~48k exploit + shellcode scripts) backing the offline Exploit-DB browser |
+
+**Password:** `root`
+
+Extraction is automatic, but if you ever need to do it by hand:
+
+```bash
+# 7z reads split volumes named .7z.001/.002/… — drop the .txt first
+for f in binaries.7z.*.txt; do ln -s "$f" "${f%.txt}"; done
+7z x -proot binaries.7z.001          # -> binaries/
+7z x -proot exploitdb.7z.001         # -> sources/exploitdb/
+```
+
+The extracted `binaries/` and `sources/exploitdb/` directories are git-ignored — the archives are the source of truth, so the repository download stays lean.
 
 ---
 
