@@ -131,13 +131,10 @@ if [ -d "$SCRIPT_DIR/vendor" ] && [ -n "$(ls -A "$SCRIPT_DIR/vendor" 2>/dev/null
         --no-index \
         --find-links "$SCRIPT_DIR/vendor/" \
         --find-links "$SCRIPT_DIR/vendor/wheels/" --quiet; then
-    warn "Offline install from vendor/ failed — falling back to PyPI"
-    "$VENV_PIP" install --upgrade pip --quiet || true
-    "$VENV_PIP" install -r "$SCRIPT_DIR/requirements.txt" --quiet
+    die "Offline install from vendor/ failed; refusing to contact PyPI"
   fi
 else
-  "$VENV_PIP" install --upgrade pip --quiet
-  "$VENV_PIP" install -r "$SCRIPT_DIR/requirements.txt" --quiet
+  die "vendor/ is missing or empty; cannot install without internet"
 fi
 ok "Wiki requirements installed"
 
@@ -173,39 +170,48 @@ fi
 
 ARCHIVE_PW="${ARCHIVE_PW:-root}"
 
-# extract_bundle <basename> <sentinel-relative-path>
-#   Skips if <sentinel> already exists. 7z requires split volumes named
-#   .7z.001/.002/… (without the AV-evading .txt), so we symlink them into a
-#   temp dir first. Archives carry full paths, so we extract to $SCRIPT_DIR.
+CHECKSUM_FILE="$SCRIPT_DIR/archives.sha256"
+[ -f "$CHECKSUM_FILE" ] || die "archives.sha256 is missing; archive integrity cannot be verified"
+info "Verifying bundled archive checksums..."
+(
+  cd "$SCRIPT_DIR"
+  sha256sum -c archives.sha256
+) >/dev/null || die "Bundled archive checksum verification failed"
+ok "All bundled archive volumes passed SHA-256 verification"
+
+# extract_bundle <basename> <destination-relative-path> <sentinel-relative-path>
+# Every run tests the encrypted archive, removes any stale extraction, and then
+# extracts from the verified volumes. Missing parts or extraction failures are
+# fatal: a partial offline install must never be reported as successful.
 extract_bundle() {
-  local base="$1" sentinel="$2"
-  if [ -e "$SCRIPT_DIR/$sentinel" ]; then
-    ok "$base already present ($sentinel) — skipping extraction"
-    return 0
-  fi
+  local base="$1" destination="$2" sentinel="$3"
   shopt -s nullglob
   local parts=( "$SCRIPT_DIR/${base}".7z.*.txt )
   shopt -u nullglob
-  if [ "${#parts[@]}" -eq 0 ]; then
-    warn "$base archive (${base}.7z.*.txt) not found — skipping"
-    return 0
-  fi
-  info "Extracting $base (${#parts[@]} volume(s))..."
+  [ "${#parts[@]}" -gt 0 ] || die "$base archive (${base}.7z.*.txt) is missing"
+  info "Testing $base archive (${#parts[@]} volume(s))..."
   local tmp p name; tmp="$(mktemp -d)"
   for p in "${parts[@]}"; do
     name="$(basename "${p%.txt}")"
     ln -sf "$p" "$tmp/$name"
   done
-  if "$SEVENZIP" x -p"$ARCHIVE_PW" -o"$SCRIPT_DIR" -y "$tmp/${base}.7z.001" >/dev/null 2>&1; then
-    ok "$base extracted"
-  else
-    warn "$base extraction failed (wrong ARCHIVE_PW?). Manual: 7z x -p<pw> ${base}.7z.001"
-  fi
+  "$SEVENZIP" t -p"$ARCHIVE_PW" "$tmp/${base}.7z.001" >/dev/null 2>&1 || {
+    rm -rf "$tmp"; die "$base archive test failed (corrupt volume or wrong ARCHIVE_PW)";
+  }
+  rm -rf "$SCRIPT_DIR/$destination"
+  "$SEVENZIP" x -p"$ARCHIVE_PW" -o"$SCRIPT_DIR" -y "$tmp/${base}.7z.001" >/dev/null 2>&1 || {
+    rm -rf "$tmp"; die "$base extraction failed";
+  }
   rm -rf "$tmp"
+  [ -e "$SCRIPT_DIR/$sentinel" ] || die "$base extracted without required sentinel: $sentinel"
+  ok "$base archive tested and extracted"
 }
 
-extract_bundle "exploitdb" "sources/exploitdb/exploits"
-extract_bundle "binaries"  "binaries/.versions.json"
+extract_bundle "exploitdb" "sources/exploitdb" "sources/exploitdb/exploits"
+extract_bundle "binaries"  "binaries" "binaries/.versions.json"
+info "Verifying extracted binary provenance..."
+"$VENV_PY" "$SCRIPT_DIR/scripts/verify_binary_provenance.py" >/dev/null || die "Binary provenance verification failed"
+ok "All extracted binaries match the provenance manifest"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 4 — Verify all static assets are local (no CDN gaps)
@@ -261,10 +267,7 @@ ok "All critical static assets present"
 # Third-party external images (download and locally host)
 EXT_IMG_COUNT=$(find "$STATIC/img/external" -type f 2>/dev/null | wc -l)
 if [ "$EXT_IMG_COUNT" -lt 100 ]; then
-  info "Downloading third-party source images (first run — takes ~2 minutes)..."
-  "$VENV_PY" "$SCRIPT_DIR/scripts/fetch_external_images.py" 2>/dev/null && \
-    ok "External images downloaded and locally hosted" || \
-    warn "Some external images failed to download (unreachable third-party domains)"
+  die "Only $EXT_IMG_COUNT external images are bundled; offline package is incomplete"
 else
   ok "$EXT_IMG_COUNT external images already cached in static/img/external/"
 fi

@@ -45,8 +45,8 @@ SOURCE_GH_RAW = {
     "hacktricks":       "https://raw.githubusercontent.com/HackTricks-wiki/hacktricks/master/src",
     "hacktricks-cloud": "https://raw.githubusercontent.com/HackTricks-wiki/hacktricks-cloud/master/src",
     "hacker-recipes":   "https://raw.githubusercontent.com/ShutdownRepo/The-Hacker-Recipes/main/docs/src",
-    "hardware-att":     "https://raw.githubusercontent.com/swisskyrepo/HardwareAllTheThings/master/docs",
-    "sliver":           "https://raw.githubusercontent.com/BishopFox/sliver/master/docs/sliver-docs/public",
+    "hardware-att":     "https://raw.githubusercontent.com/swisskyrepo/HardwareAllTheThings/main/docs",
+    "sliver":           "https://raw.githubusercontent.com/BishopFox/sliver/master/docs/sliver-docs/pages/docs/md",
     "patt":             "https://raw.githubusercontent.com/swisskyrepo/PayloadsAllTheThings/master",
 }
 
@@ -549,6 +549,11 @@ def _load_index():
 
 
 def _load_page(source: str, page_path: str):
+    # Tolerate markdown-relative cross-links that kept their source extension
+    # (e.g. /page/netexec/ldap-protocol/enumerate-group-members.md) or a stray
+    # #fragment — the target page is the same slug without the .md/#anchor.
+    page_path = page_path.split("#", 1)[0]
+    page_path = re.sub(r"\.(md|markdown)$", "", page_path, flags=re.I)
     key = f"{source}/{page_path}"
     cached = _page_cache_get(key)
     if cached is not None:
@@ -567,9 +572,24 @@ def _load_page(source: str, page_path: str):
             candidates = list(PROCESSED.rglob(f"{safe}.json"))
         if not candidates:
             candidates = list(PROCESSED.rglob(f"{safe.replace(' ', '-')}.json"))
-        if not candidates:
-            return None
-        candidate = candidates[0]
+        if candidates:
+            candidate = candidates[0]
+        else:
+            # Case-insensitive / prefix-tolerant fallback. Nav links or external
+            # refs may differ from the generated page slug in case (e.g. 'readme'
+            # vs 'README') or by a source filename prefix (e.g. files named
+            # 'adaptix-c2__<slug>' served under /page/adaptix/<slug>). Match on the
+            # index key within this source, ignoring case and any stem prefix.
+            src_pref = f"{source}__".lower()
+            want     = f"{source}__{safe}".lower()
+            tail     = f"__{safe}".lower()
+            for k, v in _PAGE_INDEX.items():
+                kl = k.lower()
+                if kl.startswith(src_pref) and (kl == want or kl.endswith(tail)):
+                    candidate = v
+                    break
+            if candidate is None:
+                return None
     try:
         data = json.loads(candidate.read_text(encoding="utf-8"))
         if 'html' in data:
@@ -919,8 +939,8 @@ def _load_wadcoms() -> list:
     if wad_dir.exists():
         entries = []
         for md_file in sorted(wad_dir.glob("*.md")):
-            text = md_file.read_text(encoding="utf-8", errors="ignore")
-            m    = _WADCOMS_FM_RE.search(text)
+            text = md_file.read_text(encoding="utf-8", errors="replace").lstrip("\ufeff\r\n ")
+            m = _WADCOMS_FM_RE.search(text)
             if not m:
                 continue
             try:
@@ -1120,15 +1140,7 @@ def api_exploitdb_code(exploit_id):
         except Exception:
             return jsonify({"error": "Failed to load code"}), 500
 
-    # In offline mode, never touch the network — report cleanly instead of
-    # hanging on a 10s timeout to exploit-db.com for exploits not in the corpus.
-    if OFFLINE_MODE:
-        return jsonify({
-            "error": "Not in the offline corpus — re-pack the exploit-db archive to include it.",
-            "offline": True,
-        }), 404
-
-    # Online fallback (online mode only): proxy raw file from exploit-db.com
+    # Online fallback: proxy raw file from exploit-db.com
     try:
         url = f"https://www.exploit-db.com/download/{exploit_id}"
         req = _ur.Request(url, headers={"User-Agent": "p3ta-tricks/1.0"})
