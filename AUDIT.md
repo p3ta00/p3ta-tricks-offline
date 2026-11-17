@@ -85,7 +85,7 @@ All sampled pages had zero broken images and zero remote resource requests.
 A fresh Git clone was installed under a Linux network namespace with no network stack using:
 
 ```bash
-unshare -n ./install.sh --no-tools
+unshare -n ./install.sh
 ```
 
 The installer:

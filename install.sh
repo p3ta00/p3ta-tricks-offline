@@ -7,24 +7,22 @@
 #
 # Usage:
 #   chmod +x install.sh && ./install.sh
-#   TOOLS_DIR=/path/to/tools ./install.sh   # custom tools location
-#   ./install.sh --no-tools                 # skip tool deps, wiki only
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TOOLS_DIR="${TOOLS_DIR:-$(dirname "$SCRIPT_DIR")/p3ta-tricks-offline/tools}"
-SKIP_TOOLS=0
 VENV_DIR="$SCRIPT_DIR/.venv"
 
 # ── Parse args ────────────────────────────────────────────────────────────────
 for arg in "$@"; do
   case "$arg" in
-    --no-tools) SKIP_TOOLS=1 ;;
     --help|-h)
-      echo "Usage: $0 [--no-tools]"
-      echo "  --no-tools   Only install wiki dependencies, skip pentest tool setup"
+      echo "Usage: $0"
       exit 0 ;;
+    *)
+      echo "Unknown option: $arg" >&2
+      echo "Usage: $0" >&2
+      exit 2 ;;
   esac
 done
 
@@ -221,45 +219,7 @@ fi
 ok "$NAV_COUNT nav files found"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STEP 6 — Tool dependencies (skip with --no-tools)
-# ─────────────────────────────────────────────────────────────────────────────
-if [ "$SKIP_TOOLS" -eq 1 ]; then
-  warn "Skipping tool setup (--no-tools)"
-else
-  info "Checking pentest tool dependencies..."
-
-  TOOLS_PIP="$TOOLS_DIR/../venv/bin/pip" 2>/dev/null || TOOLS_PIP="$VENV_PIP"
-
-  # Install Python attack tool requirements from tools directory
-  if [ -d "$TOOLS_DIR" ]; then
-    PYTHON_TOOLS=(
-      BloodHound.py bloodyAD Certipy Coercer DonPAPI jwt_tool LaZagne
-      ldapdomaindump ldeep lsassy mitm6 MSSqlPwner NetExec PKINITtools
-      pyGoldenGMSA pypykatz pywhisker Responder ROADtools sccmhunter
-      targetedKerberoast impacket-src
-    )
-    for tool in "${PYTHON_TOOLS[@]}"; do
-      req="$TOOLS_DIR/$tool/requirements.txt"
-      if [ -f "$req" ]; then
-        info "  Installing deps for $tool..."
-        PIP_NO_INDEX=1 "$VENV_PIP" install -r "$req" --no-index \
-          --find-links "$SCRIPT_DIR/vendor/" --find-links "$SCRIPT_DIR/vendor/wheels/" --quiet || \
-          die "Bundled packages cannot satisfy $tool requirements; refusing network fallback"
-      fi
-    done
-    ok "Tool Python requirements processed"
-
-    # Count available tools
-    TOOL_COUNT=$(ls "$TOOLS_DIR" | wc -l)
-    ok "$TOOL_COUNT tools found in $TOOLS_DIR"
-  else
-    warn "TOOLS_DIR not found at $TOOLS_DIR"
-    warn "Set TOOLS_DIR env var or place tools at: $TOOLS_DIR"
-  fi
-fi
-
-# ─────────────────────────────────────────────────────────────────────────────
-# STEP 7 — Generate start script
+# STEP 6 — Generate start script
 # ─────────────────────────────────────────────────────────────────────────────
 START_SCRIPT="$SCRIPT_DIR/start-offline.sh"
 cat > "$START_SCRIPT" << STARTSCRIPT
@@ -269,7 +229,6 @@ set -euo pipefail
 
 SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 VENV_PY="\$SCRIPT_DIR/.venv/bin/python3"
-TOOLS_DIR="\${TOOLS_DIR:-\$(dirname "\$SCRIPT_DIR")/p3ta-tricks-offline/tools}"
 PORT="\${PORT:-5001}"
 HOST="\${HOST:-127.0.0.1}"
 
@@ -280,13 +239,11 @@ if [ ! -f "\$VENV_PY" ]; then
 fi
 
 export OFFLINE_MODE=1
-export TOOLS_DIR="\$TOOLS_DIR"
 
 echo ""
 echo "  ┌─────────────────────────────────────────────┐"
 echo "  │   p3ta-tricks  —  OFFLINE MODE              │"
 echo "  │   http://\${HOST}:\${PORT}                     │"
-echo "  │   TOOLS_DIR: \$TOOLS_DIR"
 echo "  └─────────────────────────────────────────────┘"
 echo ""
 
@@ -308,7 +265,7 @@ chmod +x "$START_SCRIPT"
 ok "Start script written to: $START_SCRIPT"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STEP 8 — Network isolation test
+# STEP 7 — Network isolation test
 # ─────────────────────────────────────────────────────────────────────────────
 info "Scanning templates for external URL references..."
 
@@ -341,10 +298,3 @@ echo ""
 echo "  Custom port / host:"
 echo -e "    ${BOLD}PORT=8080 HOST=0.0.0.0 ./start-offline.sh${NC}"
 echo ""
-echo "  Custom tools directory:"
-echo -e "    ${BOLD}TOOLS_DIR=/path/to/tools ./start-offline.sh${NC}"
-echo ""
-if [ "$SKIP_TOOLS" -eq 0 ] && [ -d "$TOOLS_DIR" ]; then
-  echo "  Tools available: $TOOL_COUNT at $TOOLS_DIR"
-  echo ""
-fi
