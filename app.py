@@ -1081,6 +1081,52 @@ def source_index(source_id):
                            entries=entries, source_meta=SOURCE_META)
 
 
+@app.route("/adaptix-framework/<path:legacy_path>")
+def legacy_adaptix_link(legacy_path):
+    """Resolve links preserved from the archived Adaptix GitBook export."""
+    path = re.sub(r"\.md$", "", legacy_path, flags=re.I)
+    if path.lower() == "blogs":
+        return redirect("/source/adaptix", code=302)
+    return redirect(f"/page/adaptix/{path}", code=302)
+
+
+@app.route("/docs")
+def legacy_sliver_docs_link():
+    """Resolve the old sliver.sh /docs?name=... link format locally."""
+    name = request.args.get("name", "").strip()
+    if not name:
+        return redirect("/source/sliver", code=302)
+    return redirect(f"/page/sliver/{name.replace(' ', '-')}", code=302)
+
+
+@app.route("/scripture/")
+def legacy_church_link():
+    """Resolve archived Church of Malware post links locally."""
+    post = request.args.get("post", "").strip()
+    if post.isdigit():
+        return redirect(f"/page/churchofmalware/scripture-{post}", code=302)
+    return redirect("/source/churchofmalware", code=302)
+
+
+@app.route("/minisign.pub")
+def sliver_minisign_key():
+    return Response(
+        "untrusted comment: minisign public key for Sliver Authors\n"
+        "RWTZPg959v3b7tLG7VzKHRB1/QT+d3c71Uzetfa44qAoX5rH7mGoQTTR\n",
+        mimetype="text/plain",
+    )
+
+
+@app.route("/enumeration/jtag/")
+def legacy_jtag_link():
+    return redirect("/page/hardware-att/debug-interfaces/jtag", code=302)
+
+
+@app.route("/generic-hacking/reverse-shells/full-ttys.md")
+def legacy_tty_link():
+    return redirect("/page/hacktricks/generic-hacking/reverse-shells/full-ttys", code=302)
+
+
 @app.route("/page/<source_id>/<path:page_path>")
 def page(source_id, page_path):
     if source_id not in SOURCE_META:
