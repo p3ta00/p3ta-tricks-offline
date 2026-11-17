@@ -92,13 +92,16 @@ BloodHound · HackTricks · HackTricks Cloud · The Hacker Recipes · PayloadsAl
 
 ---
 
-## Scripts
+## Offline maintenance scripts
+
+Only local-data transformation scripts are shipped. The release contains no
+download, scrape, clone, update, or fetch utilities.
 
 | Script | Purpose |
 |---|---|
-| `scripts/fetch_adaptix_images.py` | Scrape GitBook CDN and download all Adaptix screenshots locally |
-| `scripts/fetch_external_images.py` | Download third-party images embedded in source docs and host locally |
-| `scripts/rebuild_sources.py` | Rebuild processed content JSON from source markdown |
+| `scripts/rebuild_sources.py` | Rebuild processed content JSON from already-bundled source markdown |
+| `scripts/rebuild_nav.py` | Rebuild navigation JSON from bundled content |
+| `scripts/enhance_search_index.py` | Enhance the bundled local search index |
 
 ---
 
