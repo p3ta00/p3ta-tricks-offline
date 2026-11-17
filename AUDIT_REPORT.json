@@ -41,7 +41,14 @@
     "classification": "explicit user-clickable citations; never automatic subresources or connections"
   },
   "exploitdb": {
-    "indexed_records": 47181,
+    "raw_csv_rows": 47182,
+    "indexed_records": 46710,
+    "duplicate_tag_rows_merged": 472,
+    "duplicate_id_groups_merged": 461,
+    "upstream_commit": "70bbef3f18b835b0d8bacb978f2bc7b751a7cec9",
+    "upstream_commit_time": "2026-11-12T00:16:26Z",
+    "inventory_manifest_sha256": "3dda4c20dac405d706b68c5f9fcc72ee71db7f9a8e6ff5e465eec93af0bbaa33",
+    "file_hash_mismatches": 0,
     "missing_bundled_sources": 0,
     "sampled_code_api_failures": 0,
     "sampled_download_api_failures": 0
@@ -58,7 +65,7 @@
     "method": "fresh Git clone under unshare -n",
     "result": "pass",
     "network_required": false,
-    "exploitdb_api_result": "clean-airgap-pass 47181"
+    "exploitdb_api_result": "clean-airgap-pass; 46710 unique indexed exploit sources present"
   },
   "archives": [
     {

@@ -35,7 +35,7 @@
 - Removed a Windows case-collision between GTFOBins `R` and `r` while preserving both logical pages.
 - Rebuilt the search index to contain every one of the 5,085 processed pages.
 - Corrected an escaped iframe example that the browser had interpreted as a real asset request.
-- Replaced the Exploit-DB archive with the complete current corpus: all 47,181 indexed records have a bundled source file.
+- Refreshed Exploit-DB to upstream commit `70bbef3f18b835b0d8bacb978f2bc7b751a7cec9` (DB: 2026-11-12). Its 47,182 CSV rows normalize to 46,710 unique exploits after merging 472 repeated tag rows; every unique exploit has an exact bundled source file.
 
 ## Placeholder audit
 
@@ -97,7 +97,7 @@ The installer:
 - Verified 194 Adaptix screenshots and all critical static assets.
 - Completed without contacting PyPI, GitHub, package mirrors, CDNs, or any other service.
 
-Post-install offline API checks passed for the first, middle, and last Exploit-DB records. Result: `clean-airgap-pass 47181`.
+Post-install offline API checks passed for the newest, previous, middle, and oldest Exploit-DB records. The archive was compared file-by-file against all 46,710 unique upstream exploit paths with zero missing files and zero SHA-256 mismatches.
 
 ## Archive integrity
 
