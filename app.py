@@ -563,6 +563,12 @@ def _load_page(source: str, page_path: str):
     # #fragment — the target page is the same slug without the .md/#anchor.
     page_path = page_path.split("#", 1)[0]
     page_path = re.sub(r"\.(md|markdown)$", "", page_path, flags=re.I)
+    # Some bundled sources historically stored paths with their source prefix
+    # (for example cheatsheet/cheatsheet/foo). Accept those indexed URLs while
+    # resolving against the source directory only once.
+    source_prefix = source.rstrip("/") + "/"
+    if page_path.lower().startswith(source_prefix.lower()):
+        page_path = page_path[len(source_prefix):]
     key = f"{source}/{page_path}"
     cached = _page_cache_get(key)
     if cached is not None:
