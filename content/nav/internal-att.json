@@ -9,22 +9,27 @@
         "children": []
       },
       {
-        "title": "No Pac",
+        "title": "Nopac",
         "url": "/page/internal-att/active-directory/CVE/NoPAC",
         "children": []
       },
       {
-        "title": "Print Nightmare",
+        "title": "Printnightmare",
         "url": "/page/internal-att/active-directory/CVE/PrintNightmare",
         "children": []
       },
       {
-        "title": "Priv Exchange",
+        "title": "Privexchange",
         "url": "/page/internal-att/active-directory/CVE/PrivExchange",
         "children": []
       },
       {
-        "title": "Zero Logon",
+        "title": "Resetnightmare",
+        "url": "/page/internal-att/active-directory/CVE/ResetNightmare",
+        "children": []
+      },
+      {
+        "title": "Zerologon",
         "url": "/page/internal-att/active-directory/CVE/ZeroLogon",
         "children": []
       },

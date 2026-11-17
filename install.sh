@@ -47,42 +47,12 @@ echo -e "${NC}"
 echo "  Offline Install — $(date '+%Y-%m-%d')"
 echo ""
 
-# ── Detect OS / package manager ───────────────────────────────────────────────
-detect_pkg() {
-  if command -v pacman &>/dev/null; then echo "arch"
-  elif command -v apt-get &>/dev/null; then echo "debian"
-  elif command -v dnf &>/dev/null; then echo "fedora"
-  elif command -v brew &>/dev/null; then echo "macos"
-  else echo "unknown"
-  fi
-}
-PKG=$(detect_pkg)
-info "Detected package manager: ${BOLD}${PKG}${NC}"
-
-# ── System package installer helper ───────────────────────────────────────────
-sys_install() {
-  case "$PKG" in
-    arch)   sudo pacman -S --noconfirm --needed "$@" ;;
-    debian) sudo apt-get install -y "$@" ;;
-    fedora) sudo dnf install -y "$@" ;;
-    macos)  brew install "$@" ;;
-    *)      warn "Unknown package manager — install manually: $*" ;;
-  esac
-}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 1 — Python 3.11+
 # ─────────────────────────────────────────────────────────────────────────────
 info "Checking Python..."
-if ! command -v python3 &>/dev/null; then
-  info "Installing Python 3..."
-  case "$PKG" in
-    arch)   sys_install python ;;
-    debian) sys_install python3 python3-pip python3-venv ;;
-    fedora) sys_install python3 python3-pip ;;
-    macos)  sys_install python@3.12 ;;
-  esac
-fi
+command -v python3 &>/dev/null || die "Python 3.9+ is required. Offline install will not contact a package manager."
 
 PY_VER=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 info "Python version: $PY_VER"
@@ -95,26 +65,15 @@ fi
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 2 — pip
 # ─────────────────────────────────────────────────────────────────────────────
-if ! command -v pip3 &>/dev/null && ! python3 -m pip --version &>/dev/null 2>&1; then
-  info "Installing pip..."
-  case "$PKG" in
-    arch)   sys_install python-pip ;;
-    debian) sys_install python3-pip ;;
-    fedora) sys_install python3-pip ;;
-    macos)  python3 -m ensurepip --upgrade ;;
-  esac
-fi
+python3 -m pip --version &>/dev/null 2>&1 || python3 -m ensurepip --upgrade &>/dev/null 2>&1 || \
+  die "pip/ensurepip is required. Offline install will not contact a package manager."
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 3 — Create virtualenv and install wiki requirements
 # ─────────────────────────────────────────────────────────────────────────────
 info "Setting up Python virtual environment at $VENV_DIR ..."
 if [ ! -d "$VENV_DIR" ]; then
-  python3 -m venv "$VENV_DIR" || {
-    # Debian may need python3-venv
-    sys_install python3-venv 2>/dev/null || true
-    python3 -m venv "$VENV_DIR"
-  }
+  python3 -m venv "$VENV_DIR" || die "Python venv support is required and must be installed before going offline."
   ok "Virtualenv created"
 else
   ok "Virtualenv already exists"
@@ -124,21 +83,13 @@ VENV_PIP="$VENV_DIR/bin/pip"
 VENV_PY="$VENV_DIR/bin/python3"
 
 info "Installing wiki requirements..."
-if [ -d "$SCRIPT_DIR/vendor" ] && [ -n "$(ls -A "$SCRIPT_DIR/vendor" 2>/dev/null)" ]; then
-  info "vendor/ found — installing offline (no PyPI)"
-  # Wheels may live in vendor/ and/or vendor/wheels/ — search both.
-  if ! "$VENV_PIP" install -r "$SCRIPT_DIR/requirements.txt" \
-        --no-index \
-        --find-links "$SCRIPT_DIR/vendor/" \
-        --find-links "$SCRIPT_DIR/vendor/wheels/" --quiet; then
-    warn "Offline install from vendor/ failed — falling back to PyPI"
-    "$VENV_PIP" install --upgrade pip --quiet || true
-    "$VENV_PIP" install -r "$SCRIPT_DIR/requirements.txt" --quiet
-  fi
-else
-  "$VENV_PIP" install --upgrade pip --quiet
-  "$VENV_PIP" install -r "$SCRIPT_DIR/requirements.txt" --quiet
-fi
+[ -d "$SCRIPT_DIR/vendor" ] && [ -n "$(ls -A "$SCRIPT_DIR/vendor" 2>/dev/null)" ] || \
+  die "vendor/ is missing; all Python packages must be bundled for offline installation."
+info "Installing exclusively from bundled packages (network disabled)..."
+PIP_NO_INDEX=1 "$VENV_PIP" install -r "$SCRIPT_DIR/requirements.txt" \
+  --no-index --find-links "$SCRIPT_DIR/vendor/" \
+  --find-links "$SCRIPT_DIR/vendor/wheels/" --quiet || \
+  die "Bundled Python dependencies are incomplete; refusing to fall back to PyPI."
 ok "Wiki requirements installed"
 
 # Verify key imports
@@ -159,17 +110,7 @@ ok "Wiki requirements installed"
 info "Extracting bundled archives (binaries + exploit-db)..."
 
 SEVENZIP="$(command -v 7z || command -v 7za || command -v 7zz || true)"
-if [ -z "$SEVENZIP" ]; then
-  info "Installing 7-Zip (p7zip)..."
-  case "$PKG" in
-    arch)   sys_install p7zip ;;
-    debian) sys_install p7zip-full ;;
-    fedora) sys_install p7zip ;;
-    macos)  sys_install p7zip ;;
-  esac
-  SEVENZIP="$(command -v 7z || command -v 7za || command -v 7zz || true)"
-fi
-[ -n "$SEVENZIP" ] || die "7z not found and could not be installed — needed to extract bundled archives"
+[ -n "$SEVENZIP" ] || die "7z/7za/7zz is required. Offline install will not contact a package manager."
 
 ARCHIVE_PW="${ARCHIVE_PW:-root}"
 
@@ -187,8 +128,7 @@ extract_bundle() {
   local parts=( "$SCRIPT_DIR/${base}".7z.*.txt )
   shopt -u nullglob
   if [ "${#parts[@]}" -eq 0 ]; then
-    warn "$base archive (${base}.7z.*.txt) not found — skipping"
-    return 0
+    die "$base archive (${base}.7z.*.txt) is missing; repository is not self-contained"
   fi
   info "Extracting $base (${#parts[@]} volume(s))..."
   local tmp p name; tmp="$(mktemp -d)"
@@ -199,7 +139,7 @@ extract_bundle() {
   if "$SEVENZIP" x -p"$ARCHIVE_PW" -o"$SCRIPT_DIR" -y "$tmp/${base}.7z.001" >/dev/null 2>&1; then
     ok "$base extracted"
   else
-    warn "$base extraction failed (wrong ARCHIVE_PW?). Manual: 7z x -p<pw> ${base}.7z.001"
+    die "$base extraction failed (archive incomplete or wrong ARCHIVE_PW)"
   fi
   rm -rf "$tmp"
 }
@@ -238,7 +178,7 @@ check_file "$STATIC/fonts/press-start-2p-latin.woff2"
 # Adaptix C2 locally-hosted screenshots (required for offline)
 ADAPTIX_IMG_COUNT=$(find "$STATIC/img/adaptix" -name "*.png" -o -name "*.jpg" 2>/dev/null | wc -l)
 if [ "$ADAPTIX_IMG_COUNT" -lt 100 ]; then
-  warn "Only $ADAPTIX_IMG_COUNT Adaptix images found (expected 190+) — run: python3 scripts/fetch_adaptix_images.py"
+  die "Only $ADAPTIX_IMG_COUNT bundled Adaptix images found (expected 190+); repository is incomplete"
 else
   ok "$ADAPTIX_IMG_COUNT Adaptix screenshots cached locally"
 fi
@@ -247,10 +187,9 @@ fi
 check_file "$SCRIPT_DIR/sources/sliver-docs/images/cursed-1.png"
 check_file "$SCRIPT_DIR/sources/sliver-docs/images/dns-c2-1.png"
 
-# CyberChef (optional but expected)
+# CyberChef is required and bundled.
 if [ ! -f "$STATIC/cyberchef/CyberChef_v11.0.0.html" ]; then
-  warn "CyberChef not found at $STATIC/cyberchef/ — the CyberChef tab will show a blank page"
-  warn "Download from: https://github.com/gchq/CyberChef/releases"
+  die "Bundled CyberChef is missing from $STATIC/cyberchef/"
 fi
 
 if [ "$MISSING" -gt 0 ]; then
@@ -261,10 +200,7 @@ ok "All critical static assets present"
 # Third-party external images (download and locally host)
 EXT_IMG_COUNT=$(find "$STATIC/img/external" -type f 2>/dev/null | wc -l)
 if [ "$EXT_IMG_COUNT" -lt 100 ]; then
-  info "Downloading third-party source images (first run — takes ~2 minutes)..."
-  "$VENV_PY" "$SCRIPT_DIR/scripts/fetch_external_images.py" 2>/dev/null && \
-    ok "External images downloaded and locally hosted" || \
-    warn "Some external images failed to download (unreachable third-party domains)"
+  die "Only $EXT_IMG_COUNT bundled external images found (expected 100+); refusing network recovery"
 else
   ok "$EXT_IMG_COUNT external images already cached in static/img/external/"
 fi
@@ -278,7 +214,7 @@ PAGE_COUNT=$(find "$CONTENT_DIR" -name "*.json" | wc -l)
 NAV_COUNT=$(find "$SCRIPT_DIR/content/nav" -name "*.json" | wc -l)
 
 if [ "$PAGE_COUNT" -lt 3000 ]; then
-  warn "Only $PAGE_COUNT processed pages found — expected 3200+. Run: git pull"
+  die "Only $PAGE_COUNT processed pages found — offline content bundle is incomplete"
 else
   ok "$PAGE_COUNT content pages found"
 fi
@@ -306,8 +242,9 @@ else
       req="$TOOLS_DIR/$tool/requirements.txt"
       if [ -f "$req" ]; then
         info "  Installing deps for $tool..."
-        "$VENV_PIP" install -r "$req" --quiet 2>/dev/null || \
-          warn "  Some deps for $tool failed — continuing"
+        PIP_NO_INDEX=1 "$VENV_PIP" install -r "$req" --no-index \
+          --find-links "$SCRIPT_DIR/vendor/" --find-links "$SCRIPT_DIR/vendor/wheels/" --quiet || \
+          die "Bundled packages cannot satisfy $tool requirements; refusing network fallback"
       fi
     done
     ok "Tool Python requirements processed"

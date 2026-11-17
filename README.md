@@ -14,14 +14,16 @@ A fast, searchable pentest reference that pulls attack techniques, tool syntax, 
 
 ## Offline Mode
 
-This repo ships fully air-gapped. Every image that can be locally hosted is included:
+This repository is the **offline-only** edition and ships fully air-gapped. Installation and runtime never use PyPI, package-manager downloads, GitHub raw fallbacks, CDNs, or Exploit-DB network fallbacks. Missing bundled artifacts cause installation to stop instead of silently going online.
+
+All runtime assets are included:
 
 - **`static/img/adaptix/`** — 194 Adaptix C2 screenshots scraped from GitBook CDN
-- **`static/img/external/`** — 190 third-party images (blogspot, Medium, GitHub user-attachments, OWASP, CyberArk, Palo Alto, PortSwigger, etc.) downloaded and locally hosted
-- **`sources/sliver-docs/images/`** — Sliver C2 diagrams
-- GitHub-raw images (HackTricks, Hacker Recipes, PATT, etc.) are served via `_rewrite_images()` at request time — requires internet in online mode, served from `sources/` locally in offline mode
+- **`static/img/external/`** — 1,360 third-party images (blogspot, Medium, GitHub user-attachments, OWASP, CyberArk, Palo Alto, PortSwigger, etc.) downloaded and locally hosted
+- **`static/source-assets/sliver/`** — Sliver C2 diagrams
+- **`static/source-assets/`** — 1,500 images from the latest upstream wiki snapshots, preserving each source's relative paths
 
-17 images remain external (Google Slides auth-gated or deleted from origin servers) — noted in the home page disclaimer.
+Upstream images that were authentication-gated or already deleted are treated as unavailable; the application never attempts to fetch them at runtime.
 
 ### Quick start
 
@@ -36,7 +38,7 @@ Custom port / host:
 PORT=8080 HOST=0.0.0.0 ./start-offline.sh
 ```
 
-The installer handles Python venv, dependencies, asset verification, archive extraction, and external image download (idempotent — skips already-cached steps).
+The installer creates the Python venv, installs exclusively from `vendor/`, verifies bundled assets, and extracts the bundled archives. It has no network fallback. Python 3.9+ and 7-Zip must already be available on the host.
 
 ---
 
@@ -68,7 +70,7 @@ The extracted `binaries/` and `sources/exploitdb/` directories are git-ignored �
 
 BloodHound · HackTricks · HackTricks Cloud · The Hacker Recipes · PayloadsAllTheThings · InternalAllTheThings · HardwareAllTheThings · GTFOBins · LOLBAS · WADComs · NetExec · Impacket · Certipy · bloodyAD · Rubeus · Mimikatz · Ligolo-ng · Sliver · Adaptix C2 · goexec · Metasploit · All About Bug Bounty · Exploit-DB · Church of Malware · Misc Cheatsheets
 
-**3,383 pages · 31 sources**
+**5,082 indexed pages · 31 sources**
 
 ---
 
