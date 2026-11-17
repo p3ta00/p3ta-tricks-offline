@@ -70,7 +70,7 @@ The extracted `binaries/` and `sources/exploitdb/` directories are git-ignored �
 
 BloodHound · HackTricks · HackTricks Cloud · The Hacker Recipes · PayloadsAllTheThings · InternalAllTheThings · HardwareAllTheThings · GTFOBins · LOLBAS · WADComs · NetExec · Impacket · Certipy · bloodyAD · Rubeus · Mimikatz · Ligolo-ng · Sliver · Adaptix C2 · goexec · Metasploit · All About Bug Bounty · Exploit-DB · Church of Malware · Misc Cheatsheets
 
-**5,082 indexed pages · 31 sources**
+**5,085 indexed pages · 31 sources**
 
 ---
 
