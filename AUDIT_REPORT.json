@@ -1,0 +1,94 @@
+{
+  "audit_date": "2026-11-16",
+  "audited_tree": "0c532a9",
+  "result": "pass",
+  "corpus": {
+    "sources": 31,
+    "processed_pages": 5085,
+    "search_entries": 5085,
+    "json_errors": 0,
+    "empty_or_invalid_pages": 0,
+    "duplicate_source_paths": 0
+  },
+  "crawl": {
+    "navigation_urls": 5227,
+    "application_urls_checked": 5732,
+    "internal_links_checked": 5169,
+    "local_assets_checked": 1600,
+    "bad_statuses": 0,
+    "external_automatic_assets": 0,
+    "placeholder_pages": 0,
+    "dead_content_pages": 0
+  },
+  "placeholder_resolution": {
+    "original_occurrences": 37,
+    "original_pages": 28,
+    "recovered_and_bundled": 3,
+    "dead_decorative_or_unavailable_removed": 34,
+    "remaining": 0,
+    "placeholder_asset_removed": true
+  },
+  "media": {
+    "general_external_images": 1668,
+    "source_relative_assets": 1413,
+    "adaptix_screenshots": 194,
+    "newly_recovered_assets": 3
+  },
+  "external_documentation_links": {
+    "occurrences": 40810,
+    "unique": 27451,
+    "pages": 3657,
+    "classification": "explicit user-clickable citations; never automatic subresources or connections"
+  },
+  "exploitdb": {
+    "indexed_records": 47181,
+    "missing_bundled_sources": 0,
+    "sampled_code_api_failures": 0,
+    "sampled_download_api_failures": 0
+  },
+  "browser": {
+    "pages_sampled": 12,
+    "broken_images": 0,
+    "remote_resource_requests": 0,
+    "payload_encoder": "pass",
+    "jwt_decoder": "pass",
+    "cyberchef": "pass"
+  },
+  "clean_airgapped_install": {
+    "method": "fresh Git clone under unshare -n",
+    "result": "pass",
+    "network_required": false,
+    "exploitdb_api_result": "clean-airgap-pass 47181"
+  },
+  "archives": [
+    {
+      "file": "exploitdb.7z.001.txt",
+      "bytes": 26982357,
+      "sha256": "128f597d57d3123fa0c8980a10078b936b04ccf8e9004563ff5c6f056d184c01",
+      "integrity": "pass"
+    },
+    {
+      "file": "binaries.7z.001.txt",
+      "bytes": 99614720,
+      "sha256": "236c6253d55f4634faa35a1be3b80474b70ab358ae2482a1ce2e8a59cb2352f5"
+    },
+    {
+      "file": "binaries.7z.002.txt",
+      "bytes": 99614720,
+      "sha256": "662e21a6e41d1a5598af55167df9bba268d46ce8281870f92833217300318e22"
+    },
+    {
+      "file": "binaries.7z.003.txt",
+      "bytes": 4335873,
+      "sha256": "06a7d91725a64c05e17de8d88028fdc28ef3fd5c54d2f209e6e7094b31f25c83"
+    }
+  ],
+  "kali_vm": {
+    "temporary_installation_removed": true,
+    "project_artifacts_removed": true,
+    "firewall_rules_restored": true,
+    "default_route_present": true,
+    "internet_probe_after_restore": "pass",
+    "port_5000_stopped": true
+  }
+}
