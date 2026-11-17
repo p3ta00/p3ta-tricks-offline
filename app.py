@@ -186,8 +186,21 @@ app = Flask(__name__)
 def _security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
-    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Referrer-Policy'] = 'no-referrer'
     response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+    # The offline build must never load a subresource or call an API on the
+    # internet, even if imported documentation contains an overlooked URL.
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob:; "
+        "font-src 'self' data:; "
+        "media-src 'self' blob:; "
+        "connect-src 'self'; "
+        "worker-src 'self' blob:; "
+        "frame-src 'self'; object-src 'none'; base-uri 'self'"
+    )
     return response
 
 
